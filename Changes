@@ -1,5 +1,11 @@
 Revision history for DBIx-Class-LibXMLdoc
 
+0.02 2006-11-28 22:12
+     - It was putting the _Doc methods into the top space instead of
+       the calling space.
+     - Spelling fix.
+     - Added note about UTF8Columns.
+
 0.01 2006-11-28 21:24
      - Initial version from module-starter.
      - Needs better tests.
