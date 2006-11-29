@@ -1,0 +1,5 @@
+Revision history for DBIx-Class-LibXMLdoc
+
+0.01 2006-11-28 21:24
+     - Initial version from module-starter.
+     - Needs better tests.
