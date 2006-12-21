@@ -1,5 +1,10 @@
 Revision history for DBIx-Class-LibXMLdoc
 
+0.03 2006
+     - 0.02 still listed 0.01 as version in POD; uh, now it's 0.03 anyway.
+     - I think there was a stupid error in the perl critic test file;
+       not "use"ing Test::More that was causing test failures on the CPAN.
+
 0.02 2006-11-28 22:12
      - It was putting the _Doc methods into the top space instead of
        the calling space.

@@ -9,7 +9,7 @@ use HTML::Entities;
 our %Charmap = %HTML::Entities::entity2char;
 delete @Charmap{qw( amp lt gt quot apos )};
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 __PACKAGE__->mk_classdata( '_libXMLdoc_columns' );
 
@@ -50,13 +50,13 @@ sub _toDoc {
     return $self->$_colDoc if $self->$_colDoc # save a parser run if possible
         and not $self->is_changed;
 
-    my $content = $self->$col;
+    my $content = $self->$col || "\n"; # mabye...?
 
     my $parser = XML::LibXML->new();
     $parser->line_numbers(1);
 
     my $wrapper = $self->table . $col;
-    $wrapper =~ s/[^[:alpha:]]//g;
+    $wrapper =~ s/[^[:alpha:]]//g; # namespaces might be better...?
     my ( $doc, $out );
     eval {
         HTML::Entities::_decode_entities($content, \%Charmap);
@@ -80,11 +80,11 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::LibXMLdoc - create an adjunct "Doc" accessor of a column's data which is automatically parsed into a LibXML documentElement (alpha-software).
+DBIx::Class::LibXMLdoc - Create an adjunct "Doc" accessor of a column's data which is automatically parsed into a LibXML documentElement (alpha-software).
 
 =head1 VERSION
 
-0.01
+0.03
 
 =head1 SYNOPSIS
 
