@@ -1,8 +1,8 @@
 \bRCS\b
 \bCVS\b
 ,v$
-\B\.svn\b
-
+\.svn\b
+\.cvs
 \bMakefile$
 \bblib
 \bMakeMaker-\d

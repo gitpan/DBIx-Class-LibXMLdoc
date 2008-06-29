@@ -2,16 +2,20 @@ package DBIx::Class::LibXMLdoc;
 
 use warnings;
 use strict;
-use base qw/DBIx::Class/;
+use parent "DBIx::Class";
 
 use XML::LibXML;
 use HTML::Entities;
 our %Charmap = %HTML::Entities::entity2char;
 delete @Charmap{qw( amp lt gt quot apos )};
 
-our $VERSION = '0.03';
+our $VERSION = '0.03_a';
 
 __PACKAGE__->mk_classdata( '_libXMLdoc_columns' );
+__PACKAGE__->mk_classdata("parser_settings" => {
+                                                line_numbers => 1
+                                               }
+                         );
 
 sub libXMLdoc_columns {
     my $self = shift;
@@ -22,6 +26,8 @@ sub libXMLdoc_columns {
         {
             $self->throw_exception("column $col doesn't exist")
                 unless $self->has_column($col);
+            $self->throw_exception("column ${col}Doc is a real column")
+                if $self->has_column($col."Doc");
             no strict 'refs';
             my $method = "${col}Doc";
             *{"${class}::$method"} = sub { $_[0]->_toDoc($col) };
@@ -35,7 +41,7 @@ sub libXMLdoc_columns {
     }
 }
 
-sub _toDoc {
+sub _toDoc : method {
     my $self = shift;
     my $col = shift;
     my $colDoc = "${col}Doc";
@@ -50,28 +56,38 @@ sub _toDoc {
     return $self->$_colDoc if $self->$_colDoc # save a parser run if possible
         and not $self->is_changed;
 
-    my $content = $self->$col || "\n"; # mabye...?
+    my $content = $self->$col || "";
 
-    my $parser = XML::LibXML->new();
-    $parser->line_numbers(1);
+    unless ( $self->{_parser} )
+    {
+        $self->{_parser} = XML::LibXML->new;
+        for my $method ( keys %{ $self->parser_settings } )
+        {
+            my $ok = eval { $self->{_parser}->$method( $self->parser_settings->{$method} ); 1 };
 
-    my $wrapper = $self->table . $col;
-    $wrapper =~ s/[^[:alpha:]]//g; # namespaces might be better...?
+            $self->throw_exception("Error calling method $method on parser with argument $self->parser_settings->{$method}: " . $@ )
+                unless $ok;
+        }
+    }
+
     my ( $doc, $out );
     eval {
         HTML::Entities::_decode_entities($content, \%Charmap);
-        $doc = $parser->parse_string
-            ("<$wrapper>$content</$wrapper>");
+        $doc = $self->{_parser}->parse_string
+            ("<doc>$content</doc>");
         $doc->setEncoding("utf-8") if $self->can("utf8_columns")
             and $self->utf8_columns->{$col};
+        $doc->documentElement->setAttribute("table", $self->table);
+        $doc->documentElement->setAttribute("column", $col);
+        $doc->documentElement->setAttribute("docversion", $VERSION);
         $self->$_colDoc($doc->documentElement);
     };
 
     if ( $@ )
     {
-        $self->throw_exception("$wrapper " . $self->id . " failed to parse:\n$@");
+        $self->throw_exception("$col data for id " . $self->id . " failed to parse:\n$@");
     }
-    $self->$_colDoc;
+    return $self->$_colDoc;
 }
 
 1;
@@ -80,11 +96,11 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::LibXMLdoc - Create an adjunct "Doc" accessor of a column's data which is automatically parsed into a LibXML documentElement (alpha-software).
+DBIx::Class::LibXMLdoc - Create an adjunct "Doc" accessor of a column's data which is automatically parsed into a LibXML documentElement (beta-software, dev release).
 
 =head1 VERSION
 
-0.03
+0.03_a
 
 =head1 SYNOPSIS
 
@@ -140,7 +156,7 @@ Acting foolishly on American Bandstand
  Acting foolishly on American Bandstand
  </p></thingybody>
 
-The returned item, C<$root> above, is the C<<doc->documentElement>> of
+The returned item, C<$root> above, is the C<doc-E<gt>documentElement> of
 a L<XML::LibXML::Document>. It returns the C<documentElement> instead
 of the document object itself because the document object is less
 frequently/directly useful and in the cases you might want it, e.g. to
@@ -158,12 +174,13 @@ C<ownerDocument>. E.g.-
 
  # NOW gives us (spacing added) ------
  <?xml version="1.0" encoding="utf-8"?>
- <thingybody>
+ <doc table="thingy" column="body" version="0.03_a">
  <h1>Gullah</h1>
  <p>
  Ain't no doubt Jesus see us<br/>
  Acting foolishly on American Bandstand
- </p></thingybody>
+ </p>
+ </doc>
 
 The encoding, as utf-8 above, is only set if the UTF8Columns component
 is also being used on the column. I believe this means load order
@@ -173,68 +190,54 @@ matters. I.e. it should be-
 
 When you're using both.
 
-=head1 ONLY METHOD
+=head1 METHODS
 
 =head2 libXMLdoc_columns
 
-Use C<libXMLdoc_columns> to set the columns you want available. If the
-columns contain anything which isn't valid XML, an exception will be
-thrown.
+Use C<libXMLdoc_columns> to set the columns you want available. If the columns contain anything which isn't valid XML, an exception will be thrown.
+
+=head2 parser_settings
+
+This is a hash ref of methods and their arugments which are passed to the L<XML::LibXML> parser when it is created.
+
+The only pair passed by default is C<line_numbers> =E<gt> C<1>. Which is added to the parser like so-
+
+  $parser->line_numbers(1)
+
+You can set any C<method> =E<gt> C<argument> pairs you like. See what is possible in the L<XML::LibXML::Parser> docs. Any mistaken method names or illegal arugments will cause an error. It is mostly included so you can do the following if you know your content is junk; since parsing errors throw exceptions.
+
+ __PAKCAGE__->parser_settings({ recover => 1 })
+
+=head1 TO DO
+
+There are basically no live tests right now. This is very bad but since it's been running in produciton without problems I've been slow off the blocks. I'll try to remedy that in the next real release.
 
 =head1 BUGS AND LIMITATIONS
 
-This is brand new. I find it very useful for what I'm doing but I know
-the code is not as complete or robust as it could be so I would love
-feedback and especially test and code contributions. Until the "alpha"
-notice is pulled from the description, anything can be changed if
-it's a good idea, including the module name.
+This is no longer brand new and it's been used quite robustly in production since November of 2006. There are no known bugs. I love good feedback and bug reports.
 
-Please report any bugs or feature requests to
-C<bug-dbix-class-libxmldoc@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org>.
-
-=head1 AUTHOR
-
-Ashley Pond V C<< <ashley@cpan.org> >>. Code stubs/flow were taken
-from Daisuke Murase's L<DBIx::Class::UTF8Columns>.
+Please report any bugs or feature requests to C<bug-dbix-class-libxmldoc@rt.cpan.org>, or through the web interface at L<http://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-Class-LibXMLdoc>.
 
 =head1 SEE ALSO
 
-L<XML::LibXML::Document>, L<XML::LibXML::Node>,
-L<XML::LibXML::Element>, L<XML::LibXML::Text>, and
-L<XML::LibXML::Attr>.
+L<XML::LibXML::Document>, L<XML::LibXML::Node>, L<XML::LibXML::Element>, L<XML::LibXML::Text>, and L<XML::LibXML::Attr>.
 
 L<HTML::Entities> and L<DBIx::Class>.
 
-=head1 LICENCE AND COPYRIGHT
+=head1 AUTHOR
 
-Copyright (c) 2006, Ashley Pond V C<< <ashley@cpan.org> >>. All rights
-reserved.
+Ashley Pond V C<< <ashley@cpan.org> >>.
 
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2008, Ashley Pond V C<< <ashley@cpan.org> >>.
+
+This module is free software; you can redistribute it and modify it under the same terms as Perl itself. See L<perlartistic>.
 
 =head1 DISCLAIMER OF WARRANTY
 
-BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
-ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
-YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
-NECESSARY SERVICING, REPAIR, OR CORRECTION.
+Because this software is licensed free of charge, there is no warranty for the software, to the extent permitted by applicable law. Except when otherwise stated in writing the copyright holders and other parties provide the software "as is" without warranty of any kind, either expressed or implied, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose. The entire risk as to the quality and performance of the software is with you. Should the software prove defective, you assume the cost of all necessary servicing, repair, or correction.
 
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE
-LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
-OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
-THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
-RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
-FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
-SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
+In no event unless required by applicable law or agreed to in writing will any copyright holder, or any other party who may modify or redistribute the software as permitted by the above license, be liable to you for damages, including any general, special, incidental, or consequential damages arising out of the use or inability to use the software (including but not limited to loss of data or data being rendered inaccurate or losses sustained by you or third parties or a failure of the software to operate with any other software), even if such holder or other party has been advised of the possibility of such damages.
 
 =cut
