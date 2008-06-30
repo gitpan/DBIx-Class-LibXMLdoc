@@ -9,12 +9,12 @@ use HTML::Entities;
 our %Charmap = %HTML::Entities::entity2char;
 delete @Charmap{qw( amp lt gt quot apos )};
 
-our $VERSION = '0.03_a';
+our $VERSION = '0.04';
 
 __PACKAGE__->mk_classdata( '_libXMLdoc_columns' );
-__PACKAGE__->mk_classdata("parser_settings" => {
-                                                line_numbers => 1
-                                               }
+__PACKAGE__->mk_classdata("libXMLdoc_parser_settings" => {
+                                                          line_numbers => 1
+                                                         }
                          );
 
 sub libXMLdoc_columns {
@@ -61,11 +61,11 @@ sub _toDoc : method {
     unless ( $self->{_parser} )
     {
         $self->{_parser} = XML::LibXML->new;
-        for my $method ( keys %{ $self->parser_settings } )
+        for my $method ( keys %{ $self->libXMLdoc_parser_settings } )
         {
-            my $ok = eval { $self->{_parser}->$method( $self->parser_settings->{$method} ); 1 };
+            my $ok = eval { $self->{_parser}->$method( $self->libXMLdoc_parser_settings->{$method} ); 1 };
 
-            $self->throw_exception("Error calling method $method on parser with argument $self->parser_settings->{$method}: " . $@ )
+            $self->throw_exception("Error calling method $method on parser with argument $self->libXMLdoc_parser_settings->{$method}: " . $@ )
                 unless $ok;
         }
     }
@@ -85,7 +85,7 @@ sub _toDoc : method {
 
     if ( $@ )
     {
-        $self->throw_exception("$col data for id " . $self->id . " failed to parse:\n$@");
+        $self->throw_exception($self->ID . "|column=$col:\n$@");
     }
     return $self->$_colDoc;
 }
@@ -96,11 +96,11 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::LibXMLdoc - Create an adjunct "Doc" accessor of a column's data which is automatically parsed into a LibXML documentElement (beta-software, dev release).
+DBIx::Class::LibXMLdoc - Create an adjunct "[column]Doc" accessor of a column's data which is automatically parsed into a LibXML documentElement (beta-software).
 
 =head1 VERSION
 
-0.03_a
+0.04
 
 =head1 SYNOPSIS
 
@@ -174,7 +174,7 @@ C<ownerDocument>. E.g.-
 
  # NOW gives us (spacing added) ------
  <?xml version="1.0" encoding="utf-8"?>
- <doc table="thingy" column="body" version="0.03_a">
+ <doc table="thingy" column="body" version="0.04">
  <h1>Gullah</h1>
  <p>
  Ain't no doubt Jesus see us<br/>
@@ -196,21 +196,24 @@ When you're using both.
 
 Use C<libXMLdoc_columns> to set the columns you want available. If the columns contain anything which isn't valid XML, an exception will be thrown.
 
-=head2 parser_settings
+=head2 libXMLdoc_parser_settings
 
-This is a hash ref of methods and their arugments which are passed to the L<XML::LibXML> parser when it is created.
+This is a hash ref of methods and their arguments which are passed to the L<XML::LibXML> parser when it is created.
 
 The only pair passed by default is C<line_numbers> =E<gt> C<1>. Which is added to the parser like so-
 
   $parser->line_numbers(1)
 
-You can set any C<method> =E<gt> C<argument> pairs you like. See what is possible in the L<XML::LibXML::Parser> docs. Any mistaken method names or illegal arugments will cause an error. It is mostly included so you can do the following if you know your content is junk; since parsing errors throw exceptions.
+You can set any C<method> =E<gt> C<argument> pairs you like. See what is possible in the L<XML::LibXML::Parser> docs. Any mistaken method names or illegal arguments will cause an error. It is mostly included so you can do the following if you know your content is junk; since parsing errors throw exceptions.
 
- __PAKCAGE__->parser_settings({ recover => 1 })
+ __PACKAGE__->libXMLdoc_parser_settings({ recover => 1,
+                                          recover_silently => 1 });
 
 =head1 TO DO
 
-There are basically no live tests right now. This is very bad but since it's been running in produciton without problems I've been slow off the blocks. I'll try to remedy that in the next real release.
+There are basically no live tests right now. This is very bad but L<Test::DBIC> was tough to get going and I haven't had time to fix it or roll something minimal like it. Since the code's been running in production without problems I've been slow off the blocks. I'll try to remedy that soon.
+
+Allow a switch for parse_html...?
 
 =head1 BUGS AND LIMITATIONS
 

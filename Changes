@@ -1,5 +1,12 @@
 Revision history for DBIx-Class-LibXMLdoc
 
+0.04 Sun Jun 29 21:05:50 PDT 2008
+     - Swapped id --> ID for parser error feedback.
+     - Renamed parser_settings --> libXMLdoc_parser_settings.
+     - Started live tests with SQLite but they aren't going well so
+       they have to wait.
+     - Pod spelling mistakes.
+
 0.03_a Sat Jun 28 23:02:11 PDT 2008
      - Doing an "_a" release because I think I might have broken
        things but want it available for testing.

@@ -20,3 +20,7 @@
 \#$
 \b\.#
 \.DS_Store
+
+t/sqlite
+t/lib
+t/var
