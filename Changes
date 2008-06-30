@@ -1,5 +1,9 @@
 Revision history for DBIx-Class-LibXMLdoc
 
+0.05 Mon Jun 30 11:36:41 PDT 2008
+     - Added DBIx::Class to prereqs... derrrrrrrrr...
+     - Corrected attribute "docversion" to reflect Pod, "version."
+
 0.04 Sun Jun 29 21:05:50 PDT 2008
      - Swapped id --> ID for parser error feedback.
      - Renamed parser_settings --> libXMLdoc_parser_settings.

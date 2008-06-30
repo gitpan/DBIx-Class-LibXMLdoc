@@ -6,6 +6,7 @@ license "perl";
 all_from "lib/DBIx/Class/LibXMLdoc.pm";
 
 requires "XML::LibXML" => 1.63;
+requires "DBIx::Class" => 0.08;
 requires "HTML::Entities";
 requires "parent";
     

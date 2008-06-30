@@ -16,7 +16,8 @@ no_index:
     - inc
     - t
 requires: 
+  DBIx::Class: 0.08
   HTML::Entities: 0
   XML::LibXML: 1.63
   parent: 0
-version: 0.04
+version: 0.05

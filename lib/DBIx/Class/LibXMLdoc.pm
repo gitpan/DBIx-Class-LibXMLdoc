@@ -9,7 +9,7 @@ use HTML::Entities;
 our %Charmap = %HTML::Entities::entity2char;
 delete @Charmap{qw( amp lt gt quot apos )};
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 __PACKAGE__->mk_classdata( '_libXMLdoc_columns' );
 __PACKAGE__->mk_classdata("libXMLdoc_parser_settings" => {
@@ -79,7 +79,7 @@ sub _toDoc : method {
             and $self->utf8_columns->{$col};
         $doc->documentElement->setAttribute("table", $self->table);
         $doc->documentElement->setAttribute("column", $col);
-        $doc->documentElement->setAttribute("docversion", $VERSION);
+        $doc->documentElement->setAttribute("version", $VERSION);
         $self->$_colDoc($doc->documentElement);
     };
 
@@ -100,7 +100,7 @@ DBIx::Class::LibXMLdoc - Create an adjunct "[column]Doc" accessor of a column's 
 
 =head1 VERSION
 
-0.04
+0.05
 
 =head1 SYNOPSIS
 
@@ -174,7 +174,7 @@ C<ownerDocument>. E.g.-
 
  # NOW gives us (spacing added) ------
  <?xml version="1.0" encoding="utf-8"?>
- <doc table="thingy" column="body" version="0.04">
+ <doc table="thingy" column="body" version="0.05">
  <h1>Gullah</h1>
  <p>
  Ain't no doubt Jesus see us<br/>
